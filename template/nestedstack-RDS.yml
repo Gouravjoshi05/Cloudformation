@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters: 
+  AllocatedStorage:
+    Type: String
+    Description: Please Enter AllocatedStorage For RDS
+  DBInstanceClass:
+    Type: String
+    Description: Please Enter DBInstanceClass For RDS
+  DBName:
+    Type: String
+    Description: Please Enter DBName For RDS
+  VPCSecurityGroups:
+    Type: String
+    Description: Please Enter VPCSecurityGroups For RDS
+  MultiAZ:
+    Type: String
+    Description: Please Enter true | false
+  MaxAllocatedStorage:
+    Type: String
+    Description: Please Enter MaxAllocatedStorage
+  PrivateSubnetA:
+     Type: String
+     Description: Please Enter Subnet 
+  PrivateSubnetB:
+     Type: String
+     Description: Please Enter Subnet 
+  TechnologyUnit:
+    Description: Enter tech unit
+    Type: String
+  Project:
+    Description: Enter Project
+    Type: String
+  Component:
+    Description: Enter Component
+    Type: String
+  Owner:
+    Description: Enter Owner
+    Type: String
+  DBInstanceIdentifier:
+    Description: Enter RDS Name
+    Type: String
+
+Resources:
+  MoneyPlantRDSInstanceRotationSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: 'This is MoneyPlant RDS Instance Secret'
+      Name: MoneyPlant_RDS
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "postgres"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: Name
+          Value: MoneyPlant_RDS
+
+  MoneyPlantRDS:
+    Type: AWS::RDS::DBInstance
+    DependsOn: MoneyPlantRDSInstanceRotationSecret
+    Properties:
+      AllocatedStorage: !Ref AllocatedStorage
+      DBInstanceClass: !Ref DBInstanceClass
+      DBName: !Ref DBName
+      Engine: postgres
+      #EngineVersion: !Ref EngineVersion
+      MultiAZ: !Ref MultiAZ
+      StorageType: gp2
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref MoneyPlantRDSInstanceRotationSecret, ':SecretString:username}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref MoneyPlantRDSInstanceRotationSecret, ':SecretString:password}}' ]]
+      CopyTagsToSnapshot: true
+      DBInstanceIdentifier: !Ref DBInstanceIdentifier
+      MaxAllocatedStorage: !Ref MaxAllocatedStorage
+      VPCSecurityGroups: [!Ref VPCSecurityGroups ]
+      DBSubnetGroupName: !Ref DbSubNetGroup
+      Tags:
+        - Key: Name
+          Value: MoneyPlant-RDS
+        - Key: TechnologyUnit
+          Value: !Ref TechnologyUnit
+        - Key: Component
+          Value: !Ref Component
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner 
+
+  SecretRDSInstanceAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref MoneyPlantRDSInstanceRotationSecret
+      TargetId: !Ref MoneyPlantRDS
+      TargetType: AWS::RDS::DBInstance
+
+  DbSubNetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: My Subnet Group
+      SubnetIds: 
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+
+Outputs:
+  MoneyPlantRDSEndpoint:
+    Description: RDS Endpoint
+    Value: !Ref MoneyPlantRDS

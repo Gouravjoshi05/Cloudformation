@@ -1,0 +1,125 @@
+[
+    {
+        "ParameterKey": "EnvName",
+        "ParameterValue": "Dev"
+    },
+    {
+        "ParameterKey": "VPCCIDR",
+        "ParameterValue": "10.1.0.0/16"
+    },
+    {
+        "ParameterKey": "TechnologyUnit",
+        "ParameterValue": "Core"
+    },
+    {
+        "ParameterKey": "Project",
+        "ParameterValue": "MoneyPlant"
+    },
+    {
+        "ParameterKey": "Component",
+        "ParameterValue": "MoneyPlant"
+    },
+    {
+        "ParameterKey": "Owner",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "PublicSubnetACidr",
+        "ParameterValue": "10.1.1.0/24"
+    },
+    {
+        "ParameterKey":"PublicSubnetBCidr",
+        "ParameterValue": "10.1.2.0/24"
+    },
+    {
+        "ParameterKey": "PrivateSubnetACidr",
+        "ParameterValue": "10.1.3.0/24"
+    },
+    {
+        "ParameterKey": "PrivateSubnetBCidr",
+        "ParameterValue": "10.1.4.0/24"
+    },
+    {
+        "ParameterKey": "MoneyPlantComputationS3",
+        "ParameterValue": "offrole-tesvvvv"
+    },
+    {
+        "ParameterKey": "AllocatedStorage",
+        "ParameterValue": "10"
+    },
+    {
+        "ParameterKey": "DBInstanceClass",
+        "ParameterValue": "db.r5.xlarge"
+    },
+    {
+        "ParameterKey": "DBName",
+        "ParameterValue": "MoneyPlant"
+    },
+    {
+        "ParameterKey": "MultiAZ",
+        "ParameterValue": "false"
+    }, 
+    {
+        "ParameterKey": "MaxAllocatedStorage",
+        "ParameterValue": "10"
+    },
+    {
+        "ParameterKey": "DBInstanceIdentifier",
+        "ParameterValue": "MoneyPlant-RDS"
+    },   
+    {
+        "ParameterKey": "TopicName",
+        "ParameterValue": "MoneyPlant-SNS"
+    },
+    {
+        "ParameterKey": "PeerRegion",
+        "ParameterValue": "ap-southeast-1"
+    },
+    {
+        "ParameterKey": "PeerVpcId",
+        "ParameterValue": "vpc-575d8732"
+    },
+    {
+        "ParameterKey": "PeerOwnerId",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "AccepterSubnetCidr",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "InstanceType",
+        "ParameterValue": "c5.2xlarge"
+    },
+    {
+        "ParameterKey": "KeyName",
+        "ParameterValue": "offroll_devops"
+    },
+    {
+        "ParameterKey": "MoneyPlantSftpS3",
+        "ParameterValue": "djdjiv"
+
+    },
+    {
+        "ParameterKey": "LogGroupErrorName",
+        "ParameterValue": "MoneyPlant-Error"
+
+    },
+    {
+        "ParameterKey": "LogGroupInfoName",
+        "ParameterValue": "MoneyPlant-Info"
+
+    },
+    {
+        "ParameterKey": "EmailId",
+        "ParameterValue": "" 
+
+    },
+    {
+        "ParameterKey": "OfficeIp",
+        "ParameterValue": "x.x.x.x/x" 
+    }
+     
+
+]
+

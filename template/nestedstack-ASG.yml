@@ -1,0 +1,152 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  ImageId:
+    Description: Please Enter AMI ID
+    Type: String
+
+  InstanceType:
+    Description: Please Enter InstanceType
+    Type: String
+
+  KeyName:
+    Description: Please Enter KeyName
+    Type: String
+
+  MySecurityGroup:
+    Description: Please Enter Security Group
+    Type: String
+
+  PrivateSubnetA:
+    Description: First Public Subnet
+    Type: String
+
+  PrivateSubnetB:
+    Description: Second Public Subnet
+    Type: String
+
+  DesiredCapacity:
+    Description: Please Enter DesiredCapacity
+    Type: String
+
+  MinSize:
+    Description: Please Enter MinSize
+    Type: String
+
+  MaxSize:
+    Description: Please Enter MaxSize
+    Type: String
+
+  TechnologyUnit:
+    Description: Enter tech unit
+    Type: String
+
+  Project:
+    Description: Enter Project
+    Type: String
+  
+  Component:
+    Description: Enter Component
+    Type: String
+  
+  Owner:
+    Description: Enter Owner
+    Type: String
+
+  IamInstanceProfile:
+    Description: Enter Role
+    Type: String
+  
+
+Resources:
+  EC2LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Description: EC2 launch template
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref  KeyName
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroups:
+        - !Ref MySecurityGroup
+      
+
+  EC2AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Description: Auto scaling group 
+    Properties:
+      DesiredCapacity: !Ref DesiredCapacity
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      LaunchConfigurationName: !Ref EC2LaunchConfig
+      MinSize:  !Ref MinSize
+      MaxSize:  !Ref MaxSize
+      Tags: 
+      - Key: Name
+        Value: OffRole-ASG
+        PropagateAtLaunch: "true"
+      - Key: TechnologyUnit
+        Value: !Ref TechnologyUnit
+        PropagateAtLaunch: "true"
+      - Key: Project
+        Value: !Ref Project
+        PropagateAtLaunch: "true"
+      - Key: Component
+        Value: !Ref Component
+        PropagateAtLaunch: "true"
+      - Key: Owner
+        Value: !Ref Owner
+        PropagateAtLaunch: "true"
+
+  ScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref EC2AutoScalingGroup
+      Cooldown: '300'
+      ScalingAdjustment: '1'
+
+  ScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref EC2AutoScalingGroup
+      Cooldown: '300'
+      ScalingAdjustment: '-1'
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Alarm if CPU too high 
+      EvaluationPeriods: 2
+      Statistic: Average
+      Threshold: '70'
+      Period: '60'
+      AlarmActions: [!Ref ScaleUpPolicy]
+      Namespace: AWS/EC2
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref EC2AutoScalingGroup
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      MetricName: CPUUtilizationHigh
+
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Alarm if CPU too high 
+      EvaluationPeriods: 2
+      Statistic: Average
+      Threshold: '40'
+      Period: '60'
+      AlarmActions: [!Ref ScaleDownPolicy]
+      Namespace: AWS/EC2
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref EC2AutoScalingGroup
+      ComparisonOperator: LessThanOrEqualToThreshold
+      MetricName: CPUUtilizationLow
+
+
+

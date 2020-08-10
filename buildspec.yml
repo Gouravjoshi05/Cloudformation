@@ -1,0 +1,6 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+     - aws cloudformation update-stack --stack-name offrole-stack --template-body file://OffRoleStack.yml --parameters file://params.json --capabilities CAPABILITY_IAM
+#     - aws cloudformation wait stack-create-complete --stack-name offrole-stack

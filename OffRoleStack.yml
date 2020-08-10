@@ -1,0 +1,266 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  EnvName:
+    Description: Please Enter Environment
+    Type: String
+  VPCCIDR:
+    Description: Select the key name from the list
+    Type: String
+  TechnologyUnit:
+    Description: Enter tech unit
+    Type: String
+  Project:
+    Description: Enter Project
+    Type: String
+  Component:
+    Description: Enter Component
+    Type: String
+  Owner:
+    Description: Enter Owner
+    Type: String
+  PublicSubnetACidr:
+    Description: Enter Public Subnet A CIDR
+    Type: String
+  PublicSubnetBCidr:
+    Description: Enter Public Subnet B CIDR
+    Type: String
+  PrivateSubnetACidr:
+    Description: Enter Private Subnet A CIDR
+    Type: String
+  PrivateSubnetBCidr:
+    Description: Enter Private Subnet B CIDR
+    Type: String
+
+  MoneyPlantComputationS3:
+    Description: Please Enter BucketName
+    Type: String
+  
+  MoneyPlantSftpS3:
+    Description: Please Enter BucketName for sftp
+    Type: String
+  
+  AllocatedStorage:
+    Type: String
+    Description: Please Enter AllocatedStorage For RDS
+  DBInstanceClass:
+    Type: String
+    Description: Please Enter DBInstanceClass For RDS
+  DBName:
+    Type: String
+    Description: Please Enter DBName For RDS
+  MultiAZ:
+    Type: String
+    Description: Please Enter true | false
+  MaxAllocatedStorage:
+    Type: String
+    Description: Please Enter MaxAllocatedStorage
+  DBInstanceIdentifier:
+    Type: String
+    Description: Please Enter RDS Name
+  TopicName:
+    Type: String
+    Description: Please Enter Topic Name
+  PeerRegion:
+    Type: String
+    Description: Please Enter Accepter Region Name
+  PeerVpcId:
+    Type: String
+    Description: Enter Accepter VPC ID
+  PeerOwnerId:
+    Type: String
+    Description: Enter Accepter Account ID
+  AccepterSubnetCidr:
+    Type: String
+    Description: Enter Accepter Subnet
+  ImageId: 
+    Type: String
+    Description: Please Enter ImageID
+  InstanceType: 
+    Type: String
+    Description: Please Enter Instance Type
+  KeyName: 
+    Type: String
+    Description: Please Enter KeyName
+  LogGroupErrorName:
+    Type: String
+    Description: Please Enter Log Group Name For Error Logs
+  LogGroupInfoName:
+    Type: String
+    Description: Please Enter Log Group Name For Info Logs  
+  EmailId:
+    Type: String
+    Description: "emailid of the  sns topic" 
+  OfficeIp:
+    Type: String
+    Description: "office ip" 
+
+
+Resources:
+  MoneyPlantVpc:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-VPC.yml
+      Parameters:
+        EnvName: !Ref EnvName
+        VPCCIDR:  !Ref VPCCIDR
+        TechnologyUnit: !Ref TechnologyUnit
+        Project:  !Ref Project
+        Component:  !Ref Component
+        Owner:  !Ref Owner
+        PublicSubnetACidr:  !Ref PublicSubnetACidr
+        PublicSubnetBCidr:  !Ref PublicSubnetBCidr
+        PrivateSubnetACidr: !Ref PrivateSubnetACidr
+        PrivateSubnetBCidr: !Ref PrivateSubnetBCidr
+
+  MoneyPlantSg:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-SG.yml
+      Parameters:
+        EnvName: !Ref EnvName
+        VpcId: !GetAtt MoneyPlantVpc.Outputs.MoneyPlantVpcId
+        VpcCidr: !Ref VPCCIDR
+        OfficeIp: !Ref OfficeIp
+
+  MoneyPlantComputeS3:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-S3.yml
+      Parameters: 
+        BucketName: !Ref MoneyPlantComputationS3
+        TechnologyUnit: !Ref TechnologyUnit
+        Project:  !Ref Project
+        Component:  !Ref Component
+        Owner:  !Ref Owner
+  
+  
+  MoneyPlantSftpS3:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-S3.yml
+      Parameters: 
+        BucketName: !Ref MoneyPlantSftpS3
+        TechnologyUnit: !Ref TechnologyUnit
+        Project:  !Ref Project
+        Component:  !Ref Component
+        Owner:  !Ref Owner
+
+  MoneyPlantRDS:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-RDS.yml
+      Parameters: 
+        AllocatedStorage: !Ref AllocatedStorage
+        DBInstanceClass: !Ref DBInstanceClass
+        DBName: !Ref DBName
+        VPCSecurityGroups: 
+          Fn::GetAtt: [MoneyPlantSg, Outputs.RdsSgId]
+        MultiAZ: !Ref MultiAZ
+        MaxAllocatedStorage: !Ref MaxAllocatedStorage
+        PrivateSubnetA: 
+          Fn::GetAtt: [MoneyPlantVpc, Outputs.MoneyPlantPrivateSubnetAID] 
+        PrivateSubnetB: 
+          Fn::GetAtt: [MoneyPlantVpc, Outputs.MoneyPlantPrivateSubnetBID] 
+        TechnologyUnit: !Ref TechnologyUnit
+        Project:  !Ref Project
+        Component:  !Ref Component
+        Owner:  !Ref Owner
+        DBInstanceIdentifier: !Ref DBInstanceIdentifier
+
+  MoneyPlantCloudwatchSns:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: MoneyPlantRDS
+    Properties: 
+      TemplateURL: https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-CW-ALARM.yml
+      Parameters:    
+        DBInstanceIdentifier: !Ref DBInstanceIdentifier
+        TopicName: !Ref TopicName
+        EmailId: !Ref EmailId
+        EC2InstanceID: !GetAtt MoneyPlantComputeEc2.Outputs.MoneyPlantComputationId
+
+  MoneyPlantVpcPeering:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: MoneyPlantVpc
+    Properties:
+      TemplateURL: https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-PEER.yml
+      TimeoutInMinutes: 5
+      Parameters:
+        PeerRegion: !Ref PeerRegion
+        VpcId: !GetAtt MoneyPlantVpc.Outputs.MoneyPlantVpcId
+        PeerVpcId: !Ref PeerVpcId
+        PeerOwnerId: !Ref PeerOwnerId
+        PrivateRouteTable: !GetAtt MoneyPlantVpc.Outputs.MoneyPlantPrivateRouteTableID
+        AccepterSubnetCidr: !Ref AccepterSubnetCidr
+
+  MoneyPlantComputeIam:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: "https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-ROLES.yml"
+      Parameters:
+        BucketName: !Ref MoneyPlantComputationS3
+        roletype: ec2
+        BucketNameSftp: !Ref MoneyPlantSftpS3
+  
+  MoneyPlantSftpIam:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: "https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-ROLES.yml"
+      Parameters:
+        BucketName: !Ref MoneyPlantComputationS3
+        roletype: ec2
+        BucketNameSftp: !Ref MoneyPlantSftpS3
+  
+
+  
+  MoneyPlantSftpEc2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-SFTPEC2.yml"
+      Parameters:
+        keynameparameter: !Ref KeyName
+        instancetypeparameter: "t2.micro"
+        subnettype: public
+        subnetid: !GetAtt MoneyPlantVpc.Outputs.MoneyPlantPublicSubnetAID
+        iamrolename: !GetAtt MoneyPlantSftpIam.Outputs.MoneyPlantSftpProfilename
+        rolenamesftp: !GetAtt MoneyPlantSftpIam.Outputs.MoneyPlantSftpRole
+        publicsecuritygroup: !GetAtt MoneyPlantSg.Outputs.PublicSgId
+        privatesecuritygroup: !GetAtt MoneyPlantSg.Outputs.PrivateSgId
+        vpcid: !GetAtt MoneyPlantVpc.Outputs.MoneyPlantVpcId
+        BucketName: !Ref MoneyPlantSftpS3
+  
+  MoneyPlantComputeEc2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://offrole-cloudformation-templates.s3.ap-south-1.amazonaws.com/nestedstack-EC2.yml"
+      Parameters:
+        keynameparameter: !Ref KeyName
+        instancetypeparameter: !Ref InstanceType
+        subnettype: private
+        subnetid: !GetAtt MoneyPlantVpc.Outputs.MoneyPlantPrivateSubnetAID
+        iamrolename: !GetAtt MoneyPlantComputeIam.Outputs.MoneyPlantComputationProfileName
+        publicsecuritygroup: !GetAtt MoneyPlantSg.Outputs.PublicSgId
+        privatesecuritygroup: !GetAtt MoneyPlantSg.Outputs.PrivateSgId
+        vpcid: !GetAtt MoneyPlantVpc.Outputs.MoneyPlantVpcId
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+

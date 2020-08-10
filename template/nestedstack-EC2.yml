@@ -1,0 +1,137 @@
+---
+#Parameters 
+Parameters: 
+  keynameparameter:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description : "the vlaue of key pair to be used "
+  instancetypeparameter:
+    Type: String
+    Default: "t2.micro"
+    #AllowedValues : ["t2.micro", "t2.medium", "t2.large"]
+    Description : "Enter t2.micro, t2.medium, or t2.large. Default is t2.micro."
+  subnettype:
+    Type: String
+    Default: "private"
+    AllowedValues :
+      - private
+      - public
+    Description: "enter the type of the subnet on which ec2 to be launched "
+  subnetid:
+    Type: String
+    Default: "subnet-0393fc324f95127a4"
+  # scriptkey:
+  #   Type: String 
+  #   Default: "ftpserver.sh"
+  iamrolename:
+    Type: String
+    Description: "name of the iam role "
+  vpcid:
+    Type: String
+    Description: "the vpc id "
+  publicsecuritygroup:
+    Type: String
+    Description: "the public security group"
+  privatesecuritygroup:
+    Type: String
+    Description: "the public security group"
+
+
+
+  # BucketName: 
+  #   Type: String
+  #   Description: "name of the bucket "
+  # rolenamesftp:
+  #   Type: String
+  #   Description: "name of the bucket "
+  
+#Mappings
+Mappings:
+  imagemapping:
+    us-east-1: 
+      imageid: "ami-085925f297f89fce1"
+    ap-southeast-1:
+      imageid: "ami-0f7719e8b7ba25c61"
+
+#Conditions
+Conditions:
+  createftpserverip: !Equals [ !Ref subnettype , public ]
+  createprivatesecuritygrp: !Not [{Condition: createftpserverip}] 
+
+Resources:
+  ftpserver:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [imagemapping, !Ref "AWS::Region", imageid]
+      InstanceType: !Ref instancetypeparameter
+      KeyName: !Ref keynameparameter
+      #SubnetId: !GetAtt vpcstack.Outputs.PublicSubnetAID
+      SubnetId: !Ref subnetid
+      #user securitygropuids when subnet id is mention 
+      SecurityGroupIds: !If [createftpserverip, [!Ref publicsecuritygroup], [!Ref privatesecuritygroup]]
+      #IamInstanceProfile: !Ref iamrolename
+      IamInstanceProfile: !Ref iamrolename
+      Tags:
+      - Key: TechnologyUnit
+        Value: infra
+      - Key: Component
+        Value: infra
+      - Key: Project
+        Value: infra
+      - Key: Environment
+        Value: dev
+      #userdata
+      UserData:
+         Fn::Base64: !Sub |
+                      #!/bin/bash
+                      wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+                      sudo dpkg -i amazon-cloudwatch-agent.deb
+                      cd /opt/aws/amazon-cloudwatch-agent/etc/; touch amazon-cloudwatch-agent.json
+                      cat <<EOT > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+                      {
+                          "agent": {
+                            "metrics_collection_interval": 60,
+                            "logfile": "/var/log/amazon-cloudwatch-agent.log",  
+                            "debug": false  
+                          },
+                          "logs": {
+                            "logs_collected": {
+                              "files": {
+                                "collect_list": [
+                                  {
+                                    "file_path": "/var/log/syslog",  
+                                    "log_group_name": "syslog",  
+                                    "log_stream_name": "test"  
+                                  }]
+                              }
+                          }
+                      }
+                      }
+                      EOT
+                      sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+                      sudo systemctl restart amazon-cloudwatch-agent
+
+                            
+
+  ftpservereip: 
+    Type: AWS::EC2::EIP 
+    Condition: createftpserverip
+    Properties: 
+      Domain: vpc
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Condition: createftpserverip
+    Properties:
+      InstanceId: !Ref 'ftpserver'
+      EIP: !Ref 'ftpservereip'
+
+#outputs 
+Outputs:
+  MoneyPlantComputationId:
+    Description: "The Instance ID"
+    Value: !Ref ftpserver
+  MoneyPlantCompuationPrivateIp:
+    Description: "private ip of the instance"
+    Value: !GetAtt ftpserver.PrivateIp
+  
+  
+

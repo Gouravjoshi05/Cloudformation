@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC Peering connection using the PeerRole to accept.
+Parameters:
+  PeerRegion:
+    Type: String
+    Description: Please Enter Accepter VPC region
+  VpcId: 
+    Type: String
+    Description: Please Enter Requester VPC Region
+  PeerVpcId:
+    Type: String
+    Description: Please Enter Accepter VPC Id
+  PeerOwnerId:
+    Type: String
+    Description: Please Enter Accepter VPC Account ID
+  PrivateRouteTable:
+    Type: String
+    Description: Private Route Table of Requester VPC
+  AccepterSubnetCidr:
+    Type: String
+    Description: Please Enter AccepterSubnetCidr
+Resources:
+  vpcPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      PeerRegion: !Ref PeerRegion      # Accepter VPC Region ap-southeast-1  
+      VpcId: !Ref VpcId    # VPC Requester ID 
+      PeerVpcId: !Ref PeerVpcId        # VPC Accepter ID  vpc-575d8732 
+      PeerOwnerId: !Ref PeerOwnerId         # VPC Accepter Account ID 
+      PeerRoleArn: arn:aws:iam::123456789:role/offrole-cross-account-role-peerRole-KHMKT0VAGPLI  # Assume role ARN in Accepter Account
+      Tags: 
+      - Key: Name
+        Value: Peering-between-shinydisco-offrolevpc
+
+  PeeringRoute:
+    Type: AWS::EC2::Route
+    DependsOn: vpcPeeringConnection
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: !Ref AccepterSubnetCidr
+       VpcPeeringConnectionId: !Ref vpcPeeringConnection
+Outputs:
+  VPCPeeringConnectionId:
+    Value:
+      Ref: vpcPeeringConnection

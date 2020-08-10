@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  VpcId:
+    Description: Please Enter VPC ID
+    Type: String
+  EnvName:
+    Description: Please Enter Environment
+    Type: String
+  VpcCidr:
+    Description: please enter vpc cidr
+    Type: String
+  OfficeIp:
+    Description: please enter Office Ip
+    Type: String
+
+
+Resources: 
+  RdsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable rds port 
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '5432'
+        ToPort: '5432'
+        CidrIp: !Ref VpcCidr
+      VpcId: !Ref VpcId
+  PublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: !Ref OfficeIp
+      VpcId: !Ref VpcId
+  PrivateSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Enable SSH access via port 22
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref VpcCidr
+        VpcId: !Ref VpcId
+
+Outputs:
+  RdsSgId:
+    Description: Securitygroup id
+    Value: !Ref RdsSecurityGroup
+  PrivateSgId:
+    Description: Securitygroup id
+    Value: !Ref PrivateSecurityGroup
+  PublicSgId:
+    Description: Securitygroup id
+    Value: !Ref PublicSecurityGroup
+
+    

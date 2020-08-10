@@ -1,0 +1,212 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  VPCCIDR:
+    Description: Select the key name from the list
+    Type: String
+
+  EnvName:
+    Description: Please Enter Environment
+    Type: String
+  
+  TechnologyUnit:
+    Description: Enter tech unit
+    Type: String
+
+  Project:
+    Description: Enter Project
+    Type: String
+  
+  Component:
+    Description: Enter Component
+    Type: String
+  
+  Owner:
+    Description: Enter Owner
+    Type: String
+  
+  PublicSubnetACidr:
+    Description: Enter Public Subnet A CIDR
+    Type: String
+  
+  PublicSubnetBCidr:
+    Description: Enter Public Subnet B CIDR
+    Type: String
+
+  PrivateSubnetACidr:
+    Description: Enter Private Subnet A CIDR
+    Type: String
+
+  PrivateSubnetBCidr:
+    Description: Enter Private Subnet B CIDR
+    Type: String
+
+  
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value:  MoneyPlant-VPC
+      - Key: TechnologyUnit
+        Value: !Ref TechnologyUnit
+      - Key: Project
+        Value: !Ref Project
+      - Key: Component
+        Value: !Ref Component
+      - Key: Owner
+        Value: !Ref Owner
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    # Notice how you can't attach an IGW to a VPC unless both are created:
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway 
+    
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetACidr
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list       
+      Tags:
+      - Key: Name
+        Value: MoneyPlant-Public-A
+    
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetBCidr
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list 
+      Tags:
+      - Key: Name
+        Value: MoneyPlant-Public-B
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetACidr
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list 
+      Tags:
+      - Key: Name
+        Value: MoneyPlant-Private-A
+   
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetBCidr
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list 
+      Tags:
+      - Key: Name
+        Value: MoneyPlant-Private-B
+
+  PublicRouteTable:    # creating Public Route Table
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: MoneyPlant-Public-Route-Table
+
+  PublicRoute1:   # Public route table has direct routing to IGW:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway 
+
+  PrivateRouteTable:  # Private route table
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: MoneyPlant-Private-Route-Table
+
+  PrivateRoute1:            # Private route table can access web via NAT (created below)
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      # Route traffic through the NAT Gateway:
+      NatGatewayId: !Ref NATGateway
+
+  NATGateway:
+   Type: AWS::EC2::NatGateway
+   Properties:
+     AllocationId: !GetAtt ElasticIPAddress.AllocationId
+     SubnetId: !Ref PublicSubnetA
+     Tags:
+     - Key: Name
+       Value: NAT-MoneyPlant
+  ElasticIPAddress:
+   Type: AWS::EC2::EIP
+   Properties:
+     Domain: VPC
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+  
+
+Outputs:
+  MoneyPlantVpcId:
+    Description: MY VPC ID
+    Value: !Ref VPC
+  
+  MoneyPlantPublicSubnetAID:
+    Description: PublicSubnetA's ID
+    Value: !Ref PublicSubnetA
+
+  MoneyPlantPublicSubnetBID:
+    Description: PublicSubnetB's ID
+    Value: !Ref PublicSubnetB
+
+  MoneyPlantPrivateSubnetAID:
+    Description: PrivateSubnetA's ID
+    Value: !Ref PrivateSubnetA
+    
+
+  MoneyPlantPrivateSubnetBID:
+    Description: PrivateSubnetB's ID
+    Value: !Ref PrivateSubnetB
+  MoneyPlantPrivateRouteTableID:
+    Description: Private Route table
+    Value: !Ref PrivateRouteTable
+  
+
+
+
+    

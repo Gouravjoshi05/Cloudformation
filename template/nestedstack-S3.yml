@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  BucketName:
+    Type: String
+    Description: Please Enter Bucket Name
+  TechnologyUnit:
+    Type: String
+    Description: Please Enter TechnologyUnit
+  Project:
+    Type: String
+    Description: Please Enter Project
+  Component:
+    Type: String
+    Description: Please Enter Component
+  Owner: 
+    Type: String
+    Description: Please Enter Owner
+
+Resources:
+  S3:
+    Type: AWS::S3::Bucket
+    Properties:
+     BucketName: !Ref BucketName
+     AccessControl: Private
+     BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+     Tags: 
+     - Key: Name
+       Value:  !Ref BucketName
+     - Key: TechnologyUnit
+       Value: !Ref TechnologyUnit
+     - Key: Project
+       Value: !Ref Project
+     - Key: Component
+       Value: !Ref Component
+     - Key: Owner
+       Value: !Ref Owner
+  

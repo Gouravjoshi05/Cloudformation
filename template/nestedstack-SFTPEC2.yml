@@ -1,0 +1,127 @@
+---
+#Parameters 
+Parameters: 
+  keynameparameter:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description : "the vlaue of key pair to be used "
+  instancetypeparameter:
+    Type: String
+    Default: "t2.micro"
+    Description : "Enter t2.micro, t2.medium, or t2.large. Default is t2.micro."
+  subnettype:
+    Type: String
+    Default: "private"
+    AllowedValues :
+      - private
+      - public
+    Description: "enter the type of the subnet on which ec2 to be launched "
+  subnetid:
+    Type: String
+    Default: "subnet-0393fc324f95127a4"
+  iamrolename:
+    Type: String
+    Description: "name of the iam role "
+  vpcid:
+    Type: String
+    Description: "the vpc id "
+  BucketName: 
+    Type: String
+    Description: "name of the bucket "
+  rolenamesftp:
+    Type: String
+    Description: "name of the bucket "
+  publicsecuritygroup:
+    Type: String
+    Description: "the public security group"
+  privatesecuritygroup:
+    Type: String
+    Description: "the public security group"
+
+#Mappings
+
+Mappings:
+  imagemapping:
+    us-east-1: 
+      imageid: "ami-085925f297f89fce1"
+    ap-southeast-1:
+      imageid: "ami-0f7719e8b7ba25c61"
+
+#Conditions
+Conditions:
+  createftpserverip: !Equals [ !Ref subnettype , public ]
+  createprivatesecuritygrp: !Not [{Condition: createftpserverip}] 
+
+Resources:
+  ftpserver:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [imagemapping, !Ref "AWS::Region", imageid]
+      InstanceType: !Ref instancetypeparameter
+      KeyName: !Ref keynameparameter
+      SubnetId: !Ref subnetid
+      #user securitygropuids when subnet id is mention 
+      SecurityGroupIds: !If [createftpserverip, [!Ref publicsecuritygroup], [!Ref privatesecuritygroup]]
+      IamInstanceProfile: !Ref iamrolename
+      Tags:
+      - Key: TechnologyUnit
+        Value: infra
+      - Key: Component
+        Value: infra
+      - Key: Project
+        Value: infra
+      - Key: Environment
+        Value: dev
+      #userdata
+      UserData:
+        Fn::Base64: !Sub |
+                    #!/bin/bash
+                    apt-get update
+                    apt-get -y install awscli
+                    cd /tmp ; touch sftpusers
+                    useradd sftpuser
+                    echo "sftpuser:sftpuser" >> sftpusers
+                    cat sftpusers | chpasswd
+                    mkdir -p /sftp/uploads
+                    chmod 755 /sftp/uploads
+                    chown sftpuser:sftpuser /sftp/uploads
+                    cat <<EOT >>/etc/ssh/sshd_config
+                    Match User sftpuser
+                    ForceCommand internal-sftp
+                    PasswordAuthentication yes
+                    ChrootDirectory /sftp
+                    PermitTunnel no
+                    AllowAgentForwarding no
+                    AllowTcpForwarding no
+                    X11Forwarding no
+                    EOT
+                    service ssh restart 
+                    apt-get update
+                    apt-get install s3fs
+                    echo "${BucketName} /sftp/uploads fuse.s3fs retries=5,allow_other,url=https://s3.amazonaws.com,iam_role=${rolenamesftp},uid=1001,gid=1001,umask=077 0 0" >> /etc/fstab
+                    mount -a
+
+  ftpservereip: 
+    Type: AWS::EC2::EIP 
+    Condition: createftpserverip
+    Properties: 
+      Domain: vpc
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Condition: createftpserverip
+    Properties:
+      InstanceId: !Ref 'ftpserver'
+      EIP: !Ref 'ftpservereip'
+  
+Outputs:
+  MoneyPlantInstanceId:
+    Description: "The Instance ID"
+    Value: !Ref ftpserver
+  MoneyPlantPrivateIp:
+    Description: "private ip of the instance"
+    Value: !GetAtt ftpserver.PrivateIp
+ 
+
+
+
+  
+

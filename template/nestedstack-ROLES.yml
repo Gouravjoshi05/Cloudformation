@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  roletype:
+    Type: String
+    Description : "enter the type of the role that either lambda and ec2"
+    Default: "ec2"
+    AllowedValues :
+      - ec2
+      - lambda
+  BucketName:
+    Type: String
+    Description : "enter the type of the role that either lambda and ec2"
+    Default: "offroll-payout-configs"
+  BucketNameSftp:
+    Type: String
+    Description : "name of sftp bucket"
+
+Resources: 
+#logical id of the role 
+  RootRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      ManagedPolicyArns: 
+        - !Ref MoneyPlantComputationBucketPolicy
+        - arn:aws:iam::aws:policy/AmazonAthenaFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      
+#Policy
+  MoneyPlantComputationBucketPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Description: Policy for accessing s3 bucket 
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: "s3:*"
+            Resource: 
+            - !Sub arn:aws:s3:::${BucketName}/*
+            - !Sub arn:aws:s3:::${BucketName}
+  #Instance Profile only if  role type is ec2 
+  RootInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref RootRole
+
+  RootRoleSftp: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      ManagedPolicyArns: 
+        - !Ref MoneyPlantSftpBucketPolicy
+      
+#Policy
+  MoneyPlantSftpBucketPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Description: Policy for accessing s3 bucket 
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: "s3:*"
+            Resource: 
+            - !Sub arn:aws:s3:::${BucketNameSftp}/*
+            - !Sub arn:aws:s3:::${BucketNameSftp}
+
+  RootInstanceProfileSftp:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref RootRoleSftp
+#Outputs
+Outputs:
+  MoneyPlantSftpRole:
+    Description: "iam role name sftp"
+    Value: !Ref RootRoleSftp
+
+  MoneyPlantComputationRole:
+    Description: "iam role name computation"
+    Value: !Ref RootRole
+  
+  MoneyPlantComputationProfileName:
+    Description: "ComputationProfileName"
+    Value: !Ref RootInstanceProfile
+  
+  MoneyPlantSftpProfilename:
+    Description: "SftpProfilename"
+    Value: !Ref RootInstanceProfileSftp
